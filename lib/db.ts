@@ -2,6 +2,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Folder, Item, Outfit, Settings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
+import { repairItem, repairOutfit } from "./normalize";
 
 class ClosetDB extends Dexie {
   items!: EntityTable<Item, "id">;
@@ -17,6 +18,10 @@ class ClosetDB extends Dexie {
       folders: "id, createdAt",
       settings: "id",
     });
+    // Self-heal: any malformed record (e.g. from an odd AI answer) is repaired as it's read,
+    // so one bad item can never crash a screen.
+    this.items.hook("reading", (it) => repairItem(it));
+    this.outfits.hook("reading", (o) => repairOutfit(o));
   }
 }
 

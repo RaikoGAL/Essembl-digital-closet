@@ -1,5 +1,5 @@
 /* Minimal offline-first shell: cache navigations + static assets; never cache API calls. */
-const CACHE = "closet-v1";
+const CACHE = "closet-v2";
 const PRECACHE = ["/", "/closet", "/studio", "/rate", "/shop", "/manifest.json"];
 
 self.addEventListener("install", (e) => {

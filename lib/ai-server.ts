@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ItemSummary } from "./types";
 import { CATEGORIES, SEASONS } from "./types";
+import { unwrap } from "./normalize";
 
 export const MODEL = process.env.AI_MODEL || "claude-sonnet-5-5";
 
@@ -41,7 +42,7 @@ export function text(t: string): ContentBlock {
  * Ask Claude for a structured JSON answer by forcing a single tool call whose
  * input schema is the shape we want back.
  */
-export async function callStructured<T>(opts: {
+export async function callStructured<T = unknown>(opts: {
   system: string;
   content: ContentBlock[];
   name: string;
@@ -66,11 +67,11 @@ export async function callStructured<T>(opts: {
       messages: [{ role: "user", content: opts.content }],
     });
     const block = res.content.find((b) => b.type === "tool_use");
-    if (block && block.type === "tool_use") return block.input as T;
+    if (block && block.type === "tool_use") return unwrap(block.input, opts.name) as T;
 
     lastText = res.content.map((b) => (b.type === "text" ? b.text : "")).join("\n");
     const parsed = extractJson<T>(lastText);
-    if (parsed) return parsed;
+    if (parsed) return unwrap(parsed, opts.name) as T;
   }
   console.error("No structured output. Last text:", lastText.slice(0, 500));
   throw new AIError("The AI didn't return a usable answer. Please try again.", 502);

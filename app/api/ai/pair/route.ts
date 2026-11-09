@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callStructured, imageBlock, outfitSuggestionSchema, stylistSystem, text, wardrobeText } from "@/lib/ai-server";
 import { contextSchema, handleError, itemSummarySchema, parseBody } from "@/lib/api-utils";
-import type { ItemSummary, PairResult } from "@/lib/types";
+import type { ItemSummary } from "@/lib/types";
+import { normalizePair } from "@/lib/normalize";
 
 export const maxDuration = 60;
 
@@ -11,7 +12,7 @@ const bodySchema = contextSchema.extend({ items: z.array(itemSummarySchema), ima
 export async function POST(req: Request) {
   try {
     const body = await parseBody(req, bodySchema);
-    const out = await callStructured<PairResult>({
+    const raw = await callStructured({
       system: stylistSystem(body.styleProfile, body.presentation),
       content: [
         imageBlock(body.image),
@@ -43,10 +44,7 @@ export async function POST(req: Request) {
       },
       maxTokens: 2000,
     });
-    const valid = new Set(body.items.map((i) => i.id));
-    out.outfits = out.outfits.map((o) => ({ ...o, itemIds: o.itemIds.filter((id) => valid.has(id)) }));
-    out.similarOwned = out.similarOwned.filter((id) => valid.has(id));
-    return NextResponse.json(out);
+    return NextResponse.json(normalizePair(raw, new Set(body.items.map((i) => i.id))));
   } catch (e) {
     return handleError(e);
   }

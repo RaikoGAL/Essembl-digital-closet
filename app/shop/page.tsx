@@ -1,6 +1,6 @@
 "use client";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ItemThumb } from "@/components/ItemThumb";
 import { OutfitCard } from "@/components/OutfitCard";
 import { Button, Card, ErrorBanner, PageHeader, ScoreRing, inputCls, useBlobUrl } from "@/components/ui";
@@ -20,14 +20,15 @@ export default function ShopPage() {
   const items = useLiveQuery(() => db.items.toArray(), []);
   const [tab, setTab] = useState<"gaps" | "pair">("gaps");
   const [goals, setGoals] = useState("");
-  const [report, setReport] = useState<GapReport | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [report, setReport] = useState<GapReport | null>(null);
+  useEffect(() => {
     try {
-      return JSON.parse(sessionStorage.getItem("gap-report") || "null");
+      const r = JSON.parse(sessionStorage.getItem("gap-report") || "null");
+      if (r && Array.isArray(r.gaps)) setReport(r);
     } catch {
-      return null;
+      /* ignore */
     }
-  });
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callStructured, imageBlock, itemTagsSchema, stylistSystem, text } from "@/lib/ai-server";
 import { contextSchema, handleError, parseBody } from "@/lib/api-utils";
-import type { ItemTags } from "@/lib/types";
+import { normalizeTags } from "@/lib/normalize";
 
 export const maxDuration = 60;
 
@@ -11,7 +11,7 @@ const bodySchema = contextSchema.extend({ image: z.string(), hint: z.string().op
 export async function POST(req: Request) {
   try {
     const body = await parseBody(req, bodySchema);
-    const tags = await callStructured<ItemTags>({
+    const raw = await callStructured({
       system: stylistSystem(body.styleProfile, body.presentation),
       content: [
         imageBlock(body.image),
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       schema: itemTagsSchema,
       maxTokens: 800,
     });
-    return NextResponse.json(tags);
+    return NextResponse.json(normalizeTags(raw));
   } catch (e) {
     return handleError(e);
   }

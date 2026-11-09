@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callStructured, stylistSystem, text, wardrobeText } from "@/lib/ai-server";
 import { contextSchema, handleError, itemSummarySchema, parseBody } from "@/lib/api-utils";
-import { CATEGORIES, type GapReport, type ItemSummary } from "@/lib/types";
+import { CATEGORIES, type ItemSummary } from "@/lib/types";
+import { normalizeGaps } from "@/lib/normalize";
 
 export const maxDuration = 60;
 
@@ -11,7 +12,7 @@ const bodySchema = contextSchema.extend({ items: z.array(itemSummarySchema), bud
 export async function POST(req: Request) {
   try {
     const body = await parseBody(req, bodySchema);
-    const out = await callStructured<GapReport>({
+    const raw = await callStructured({
       system: stylistSystem(body.styleProfile, body.presentation),
       content: [
         text(wardrobeText(body.items as ItemSummary[])),
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
       },
       maxTokens: 2500,
     });
-    return NextResponse.json(out);
+    return NextResponse.json(normalizeGaps(raw, new Set(body.items.map((i) => i.id))));
   } catch (e) {
     return handleError(e);
   }

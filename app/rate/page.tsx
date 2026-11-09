@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Card, ErrorBanner, PageHeader, ScoreRing, inputCls, useBlobUrl } from "@/components/ui";
 import { ai } from "@/lib/ai-client";
 import { blobToDataUrl, resizeBlob } from "@/lib/images";
@@ -19,14 +19,15 @@ export default function RatePage() {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [extracting, setExtracting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [history, setHistory] = useState<{ score: number; headline: string; at: number }[]>(() => {
-    if (typeof window === "undefined") return [];
+  const [history, setHistory] = useState<{ score: number; headline: string; at: number }[]>([]);
+  useEffect(() => {
     try {
-      return JSON.parse(localStorage.getItem("rate-history") || "[]");
+      const h = JSON.parse(localStorage.getItem("rate-history") || "[]");
+      if (Array.isArray(h)) setHistory(h.filter((x) => x && typeof x.score === "number"));
     } catch {
-      return [];
+      /* ignore */
     }
-  });
+  }, []);
   const url = useBlobUrl(photo);
 
   const pick = async (files: FileList | null) => {

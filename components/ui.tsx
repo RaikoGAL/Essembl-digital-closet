@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 export function useBlobUrl(blob?: Blob | null): string | undefined {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
-    if (!blob) return setUrl(undefined);
+    if (!(blob instanceof Blob)) return setUrl(undefined);
     const u = URL.createObjectURL(blob);
     setUrl(u);
     return () => URL.revokeObjectURL(u);

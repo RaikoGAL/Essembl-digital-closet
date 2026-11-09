@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callStructured, imageBlock, stylistSystem, text, wardrobeText } from "@/lib/ai-server";
 import { contextSchema, handleError, itemSummarySchema, parseBody } from "@/lib/api-utils";
-import type { ItemSummary, RateResult } from "@/lib/types";
+import type { ItemSummary } from "@/lib/types";
+import { normalizeRate } from "@/lib/normalize";
 
 export const maxDuration = 60;
 
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
           .join("\n")
       )
     );
-    const out = await callStructured<RateResult>({
+    const raw = await callStructured({
       system: stylistSystem(body.styleProfile, body.presentation),
       content,
       name: "rate_outfit",
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
       schema,
       maxTokens: 1200,
     });
-    return NextResponse.json(out);
+    return NextResponse.json(normalizeRate(raw, body.items ? new Set(body.items.map((i) => i.id)) : undefined));
   } catch (e) {
     return handleError(e);
   }

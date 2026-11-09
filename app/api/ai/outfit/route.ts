@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callStructured, outfitSuggestionSchema, stylistSystem, text, wardrobeText } from "@/lib/ai-server";
 import { contextSchema, handleError, itemSummarySchema, parseBody } from "@/lib/api-utils";
-import type { ItemSummary, OutfitSuggestion } from "@/lib/types";
+import type { ItemSummary } from "@/lib/types";
+import { normalizeOutfits } from "@/lib/normalize";
 
 export const maxDuration = 60;
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     const body = await parseBody(req, bodySchema);
     if (body.items.length < 2) return NextResponse.json({ error: "Add at least 2 items to your closet first." }, { status: 400 });
     const count = body.count ?? 1;
-    const out = await callStructured<{ outfits: OutfitSuggestion[] }>({
+    const raw = await callStructured({
       system: stylistSystem(body.styleProfile, body.presentation),
       content: [
         text(wardrobeText(body.items as ItemSummary[])),
@@ -46,10 +47,7 @@ export async function POST(req: Request) {
       maxTokens: 2000,
     });
     const valid = new Set(body.items.map((i) => i.id));
-    out.outfits = out.outfits
-      .map((o) => ({ ...o, itemIds: o.itemIds.filter((id) => valid.has(id)) }))
-      .filter((o) => o.itemIds.length >= 2);
-    return NextResponse.json(out);
+    return NextResponse.json(normalizeOutfits(raw, valid));
   } catch (e) {
     return handleError(e);
   }

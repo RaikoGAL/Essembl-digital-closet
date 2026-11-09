@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callStructured, stylistSystem, text, wardrobeText } from "@/lib/ai-server";
 import { contextSchema, handleError, itemSummarySchema, parseBody } from "@/lib/api-utils";
-import type { ItemSummary, TravelPlan } from "@/lib/types";
+import type { ItemSummary } from "@/lib/types";
+import { normalizeTravel } from "@/lib/normalize";
 
 export const maxDuration = 60;
 
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
   try {
     const body = await parseBody(req, bodySchema);
     if (body.items.length < 3) return NextResponse.json({ error: "Add a few more items to your closet first." }, { status: 400 });
-    const out = await callStructured<TravelPlan>({
+    const raw = await callStructured({
       system: stylistSystem(body.styleProfile, body.presentation),
       content: [
         text(wardrobeText(body.items as ItemSummary[])),
@@ -62,10 +63,7 @@ export async function POST(req: Request) {
       },
       maxTokens: 3500,
     });
-    const valid = new Set(body.items.map((i) => i.id));
-    out.packingItemIds = out.packingItemIds.filter((id) => valid.has(id));
-    out.days = out.days.map((d) => ({ ...d, itemIds: d.itemIds.filter((id) => valid.has(id)) }));
-    return NextResponse.json(out);
+    return NextResponse.json(normalizeTravel(raw, new Set(body.items.map((i) => i.id))));
   } catch (e) {
     return handleError(e);
   }

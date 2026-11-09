@@ -123,7 +123,7 @@ function JobCard({ job, onEdit, onRemove, onRemoveDraft }: { job: Job; onEdit: (
     return (
       <Card className="p-3 flex items-center gap-3">
         {srcUrl && <img src={srcUrl} alt="" className="w-14 h-14 rounded-xl object-cover" />}
-        <div className="flex-1 text-sm text-red-300">{job.error}</div>
+        <div className="flex-1 min-w-0 text-sm text-red-300 break-words">{job.error}</div>
         <button onClick={onRemove} className="text-muted">✕</button>
       </Card>
     );

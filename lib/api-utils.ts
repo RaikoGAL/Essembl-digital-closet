@@ -17,8 +17,9 @@ export async function parseBody<T>(req: Request, schema: z.ZodType<T>): Promise<
 export function handleError(e: unknown) {
   console.error(e);
   if (e instanceof AIError) return NextResponse.json({ error: e.message }, { status: e.status });
-  const anyE = e as { status?: number; message?: string; error?: { message?: string } };
-  const msg = anyE?.error?.message || anyE?.message || "Unexpected error";
+  const anyE = e as { status?: number; message?: string; error?: { message?: string; error?: { message?: string } } };
+  // Anthropic SDK errors nest the useful message at error.error.message; fall back to the raw message
+  const msg = anyE?.error?.error?.message || anyE?.error?.message || anyE?.message || "Unexpected error";
   return NextResponse.json({ error: msg }, { status: anyE?.status && anyE.status >= 400 ? anyE.status : 500 });
 }
 

@@ -49,17 +49,42 @@ export async function callStructured<T>(opts: {
   schema: Record<string, unknown>;
   maxTokens?: number;
 }): Promise<T> {
-  const res = await client().messages.create({
-    model: MODEL,
-    max_tokens: opts.maxTokens ?? 2048,
-    system: opts.system,
-    tools: [{ name: opts.name, description: opts.description, input_schema: opts.schema as Anthropic.Messages.Tool.InputSchema }],
-    tool_choice: { type: "tool", name: opts.name },
-    messages: [{ role: "user", content: opts.content }],
-  });
-  const block = res.content.find((b) => b.type === "tool_use");
-  if (!block || block.type !== "tool_use") throw new AIError("Model did not return structured output", 502);
-  return block.input as T;
+  // Newer models reject forced tool_choice ("tool"/"any"), so we offer the tool with
+  // tool_choice "auto" and instruct the model to always answer through it. If it answers
+  // in plain text instead, we pull the JSON out of the text, and retry once if that fails.
+  const tool = { name: opts.name, description: opts.description, input_schema: opts.schema as Anthropic.Messages.Tool.InputSchema };
+  const system = `${opts.system}\n\nIMPORTANT: Always answer by calling the \`${opts.name}\` tool exactly once, with arguments matching its schema. Do not answer in plain text.`;
+
+  let lastText = "";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await client().messages.create({
+      model: MODEL,
+      max_tokens: opts.maxTokens ?? 2048,
+      system,
+      tools: [tool],
+      tool_choice: { type: "auto" },
+      messages: [{ role: "user", content: opts.content }],
+    });
+    const block = res.content.find((b) => b.type === "tool_use");
+    if (block && block.type === "tool_use") return block.input as T;
+
+    lastText = res.content.map((b) => (b.type === "text" ? b.text : "")).join("\n");
+    const parsed = extractJson<T>(lastText);
+    if (parsed) return parsed;
+  }
+  console.error("No structured output. Last text:", lastText.slice(0, 500));
+  throw new AIError("The AI didn't return a usable answer. Please try again.", 502);
+}
+
+function extractJson<T>(s: string): T | null {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(s);
+  const candidate = fenced ? fenced[1] : s.slice(s.indexOf("{"), s.lastIndexOf("}") + 1);
+  if (!candidate) return null;
+  try {
+    return JSON.parse(candidate) as T;
+  } catch {
+    return null;
+  }
 }
 
 export function stylistSystem(profile?: string, presentation?: string): string {

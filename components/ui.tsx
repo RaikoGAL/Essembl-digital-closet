@@ -114,7 +114,7 @@ export function ErrorBanner({ error, onRetry }: { error?: string | null; onRetry
   return (
     <div className="mx-4 my-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-200 text-sm flex items-start gap-3">
       <span>⚠️</span>
-      <span className="flex-1">{error}</span>
+      <span className="flex-1 min-w-0 break-words">{error}</span>
       {onRetry && (
         <button onClick={onRetry} className="underline">
           Retry
